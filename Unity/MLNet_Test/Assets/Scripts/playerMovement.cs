@@ -114,6 +114,7 @@ public class playerMovement : MonoBehaviour
             currentScore=new Score();
             currentScore.startTimer(Vector3.Distance(targetPosition,currentPosition));
         }
+        if(mainScore.)
         //Debug.Log("Collision detected with "+other.name+" !");
     }
 }

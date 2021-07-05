@@ -51,6 +51,7 @@ public class Movement{
     }
 }
 public class Score{
+    static int scoreIndex;
     private float scorePoints;
     private float scoreTime;
     private float timerStartTime;
@@ -63,6 +64,7 @@ public class Score{
         scoreTime=0;
         targetDistance=0;
         actionlist=new List<Movement>();
+        scoreIndex++;
     }
     public float startTimer(float _distanceToTarget){
         timerStartTime=Time.realtimeSinceStartup;
@@ -81,6 +83,21 @@ public class Score{
     }
     public void addMovement(Movement m){
         actionlist.Add(m);
+    }
+    public XMLobject toXML(){
+        XMLobject xo=new XMLobject("Score",new XMLobject[]{
+            new XMLobject("scorePoints",scorePoints.ToString()),
+            new XMLobject("scoreTime",scoreTime.ToString()),
+            new XMLobject("targetDistance",targetDistance.ToString())
+        });
+        foreach(Movement m in actionlist){
+            xo.addChild(m.toXML());
+        }
+        xo.addAttribute("index",scoreIndex.ToString());
+        return xo;
+    }
+    public string toXMLstring(){
+        return this.toXML().serialize();
     }
 }
 public class ScoreManager{
@@ -107,6 +124,9 @@ public class ScoreManager{
     public void AddScore(Score s){
         scorelist.Add(s);
         updateAverage();
+    }
+    public XMLobject toXML(){
+        
     }
 
 }
