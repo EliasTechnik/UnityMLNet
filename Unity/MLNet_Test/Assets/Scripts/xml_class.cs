@@ -114,7 +114,7 @@ public class XMLobject{
         }
         output+=">";
         foreach(XMLobject xo in childs){
-            output+=xo.toXML();
+            output+=xo.serialize();
         }
         output+=payload+"<"+identifier+">";
         return output;
