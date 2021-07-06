@@ -1,0 +1,8 @@
+TODOS:
+        -save only relevant infos (remove y)
+        -save only frames with movement
+        -save xml in an extra thread
+        -add movement weight (was it good or bad)
+        -add angle to target
+    -add simple UI (stats and things)
+    -log movement every half a second or every time a key is pressed (with timestamp)

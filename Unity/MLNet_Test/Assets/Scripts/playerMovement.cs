@@ -12,6 +12,7 @@ public class playerMovement : MonoBehaviour
     private float lastRoundTime;
     private float startTime;
     private ScoreManager mainScore;
+    private Movement currentMovement;
     private Score currentScore;
     private Vector3 currentPosition;
     private void respawn_target(){
@@ -49,11 +50,44 @@ public class playerMovement : MonoBehaviour
         }
         return target_pos;
     }
-    private void updateCompass(){
+    private float updateCompass(){ //returns value between 0-359
         GameObject compass=GameObject.Find("arrow");
-        Vector3 direction=(targetPosition-compass.transform.position).normalized;
+        Vector3 tp=targetPosition;
+        tp.y+=0.6f;
+        Vector3 direction=(tp-compass.transform.position).normalized;
         Quaternion lookRotation=Quaternion.LookRotation(-direction);
         compass.transform.rotation=Quaternion.Slerp(compass.transform.rotation,lookRotation,1);
+        //Debug.Log("Angle: "+lookRotation.eulerAngles.y.ToString());
+        return lookRotation.eulerAngles.y;
+    }
+    private void trigger_input(KeyCode input){//gets called every time a input happens
+        if(input==KeyCode.W){
+            if((inertia.z+gain)<maxSpeed){
+                inertia=new Vector3(inertia.x,inertia.y,inertia.z+gain);
+            }   
+            currentMovement.addUsedKeys(KeyCode.W);
+        }
+        if(input==KeyCode.A){
+            if((inertia.x-gain)>(maxSpeed*-1)){
+                inertia=new Vector3(inertia.x-gain,inertia.y,inertia.z);
+            }
+            currentMovement.addUsedKeys(KeyCode.A);
+        }
+        if(input==KeyCode.S){
+            if((inertia.z-gain)>(maxSpeed*-1)){
+                inertia=new Vector3(inertia.x,inertia.y,inertia.z-gain);
+            }
+            currentMovement.addUsedKeys(KeyCode.S);
+        }
+        if(input==KeyCode.D){
+            if((inertia.x+gain)<maxSpeed){
+                inertia=new Vector3(inertia.x+gain,inertia.y,inertia.z);
+            }
+            currentMovement.addUsedKeys(KeyCode.D);
+        }   
+    }
+    private Movement get_output(){//returns information about the current movement
+        return currentMovement;
     }
     
     // Start is called before the first frame update
@@ -65,45 +99,32 @@ public class playerMovement : MonoBehaviour
         mainScore=new ScoreManager();
         currentScore=new Score();
         currentPosition = this.transform.position;
-        currentScore.startTimer(Vector3.Distance(targetPosition,currentPosition));
+        currentScore.startTimer(targetPosition,currentPosition);
     }
     // Update is called once per frame
     void Update()
     {
         currentPosition = this.transform.position;
-        Movement m = new Movement(currentPosition,Time.frameCount);
-
+        currentMovement = new Movement(currentPosition,Time.frameCount);
         if(Input.GetKey(KeyCode.W)){
-            if((inertia.z+gain)<maxSpeed){
-                inertia=new Vector3(inertia.x,inertia.y,inertia.z+gain);
-            }   
-            m.addUsedKeys(KeyCode.W);
+            trigger_input(KeyCode.W);
         }
         if(Input.GetKey(KeyCode.A)){
-            if((inertia.x-gain)>(maxSpeed*-1)){
-                inertia=new Vector3(inertia.x-gain,inertia.y,inertia.z);
-            }
-            m.addUsedKeys(KeyCode.A);
+            trigger_input(KeyCode.A);
         }
         if(Input.GetKey(KeyCode.S)){
-            if((inertia.z-gain)>(maxSpeed*-1)){
-                inertia=new Vector3(inertia.x,inertia.y,inertia.z-gain);
-            }
-            m.addUsedKeys(KeyCode.S);
+            trigger_input(KeyCode.S);
         }
         if(Input.GetKey(KeyCode.D)){
-            if((inertia.x+gain)<maxSpeed){
-                inertia=new Vector3(inertia.x+gain,inertia.y,inertia.z);
-            }
-            m.addUsedKeys(KeyCode.D);
+            trigger_input(KeyCode.D);
         }   
         currentPosition=currentPosition+inertia;
         currentPosition=remove_border(currentPosition);
-        m.setEndPosition(currentPosition);
+        currentMovement.setEndPosition(currentPosition);
         inertia=new Vector3(inertia.x*friction,inertia.y*friction,inertia.z*friction);
         this.transform.SetPositionAndRotation(currentPosition,this.transform.rotation); 
-        updateCompass();
-        currentScore.addMovement(m);
+        currentMovement.ArrowDirection=updateCompass();
+        currentScore.addMovement(currentMovement);
     }
     private void OnTriggerEnter(Collider other){
         if(other.name=="target_obj"){
@@ -111,10 +132,10 @@ public class playerMovement : MonoBehaviour
             respawn_target();
             Debug.Log("Score: "+currentScore.ScorePoints+" Time: "+currentScore.ScoreTime);
             mainScore.AddScore(currentScore);
+            //mainScore.saveLastRound("Assets/eduData/");
             currentScore=new Score();
-            currentScore.startTimer(Vector3.Distance(targetPosition,currentPosition));
+            currentScore.startTimer(targetPosition,currentPosition);
         }
-        if(mainScore.)
         //Debug.Log("Collision detected with "+other.name+" !");
     }
 }

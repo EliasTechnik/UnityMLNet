@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static System.Environment;
 
 public class XMLobject{
     private string identifier;
@@ -53,7 +54,7 @@ public class XMLobject{
                 _xml.Remove(0,end);
                 _xml.Trim();
             }
-            end=_xml.IndexOf("<"+identifier+"/>");
+            end=_xml.IndexOf("</"+identifier+">");
             payload=_xml.Substring(1,end-1);
             _xml.Remove(0,end+identifier.Length+1);
             while(this.isXML(payload)){
@@ -116,7 +117,7 @@ public class XMLobject{
         foreach(XMLobject xo in childs){
             output+=xo.serialize();
         }
-        output+=payload+"<"+identifier+">";
+        output+=payload+"</"+identifier+">"+NewLine;
         return output;
     }
     public bool isXML(string _xml){
