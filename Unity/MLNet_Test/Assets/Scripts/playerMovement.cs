@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class playerMovement : MonoBehaviour
 {
+    private WSWrapper api;
     private float maxSpeed=0.4f;
     private float gain=0.002f;//0.05f;
     private float friction=0.995f;
@@ -100,12 +101,20 @@ public class playerMovement : MonoBehaviour
         currentScore=new Score();
         currentPosition = this.transform.position;
         currentScore.startTimer(targetPosition,currentPosition);
+        api=new WSWrapper();
+        api.Connect("ws://127.0.0.1:3333");
     }
     // Update is called once per frame
     void Update()
     {
+        api.Refresh();
+        string answer=api.getRecentMessage();
+        if(answer!=null){
+            Debug.Log(answer);
+        }
         currentPosition = this.transform.position;
         currentMovement = new Movement(currentPosition,Time.frameCount);
+
         if(Input.GetKey(KeyCode.W)){
             trigger_input(KeyCode.W);
         }
@@ -124,6 +133,10 @@ public class playerMovement : MonoBehaviour
         inertia=new Vector3(inertia.x*friction,inertia.y*friction,inertia.z*friction);
         this.transform.SetPositionAndRotation(currentPosition,this.transform.rotation); 
         currentMovement.ArrowDirection=updateCompass();
+        //send data
+        XMLobject xo=new XMLobject("instruction","predict");
+        xo.addChild(new XMLobject("movement_data",currentMovement.toCSVLine().getCSV(',')));
+        api.SendString(xo.serialize());
         currentScore.addMovement(currentMovement);
     }
     private void OnTriggerEnter(Collider other){

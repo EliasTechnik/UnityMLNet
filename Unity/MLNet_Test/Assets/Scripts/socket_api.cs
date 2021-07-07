@@ -39,7 +39,7 @@ public class socket_api : MonoBehaviour
     };
 
     // Keep sending messages at every 1s
-    InvokeRepeating("SendWebSocketMessage", 0.0f, 1f);
+    //InvokeRepeating("SendWebSocketMessage", 0.0f, 1f);
 
     // waiting for messages
     await websocket.Connect();
@@ -52,21 +52,21 @@ public class socket_api : MonoBehaviour
     #endif
   }
 
-  async void SendWebSocketMessage()
+  async void SendWebSocketMessage(string msg)
   {
     if (websocket.State == WebSocketState.Open)
     {
       // Sending bytes
-      await websocket.Send(new byte[] { 10, 20, 30 });
+      //await websocket.Send(new byte[] { 10, 20, 30 });
 
       // Sending plain text
-      await websocket.SendText("plain text message");
+      await websocket.SendText(msg);
     }
   }
 
   private async void OnApplicationQuit()
   {
-    await websocket.Close();
+    await websocket.Close(); //close websocket on closing the app
   }
 
 }

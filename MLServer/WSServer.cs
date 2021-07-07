@@ -8,8 +8,10 @@ using System.Collections.Generic;
 using System.Threading;
 //inspiration from https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_server
 
-enum messageState{WSMreceived,WSMdecoded,WSMplain,WSMencoded}
-enum messageType{WSMincome,WSMtoBeSend,WSMnone,WSMConnectonClosed}
+public enum messageState{WSMreceived,WSMdecoded,WSMplain,WSMencoded}
+public enum messageType{WSMincome,WSMtoBeSend,WSMnone,WSMConnectonClosed}
+
+public delegate void WSMessageCallback(WSMessage message);
 public class WSMessage{
     private byte[] raw;
     private byte[] decoded;
@@ -33,8 +35,14 @@ public class WSMessage{
             this.decodeRaw();
         }
         string result="";
-        if(decoded.Length>0){
+        try{
+            if(decoded.Length>0){
             result=Encoding.UTF8.GetString(decoded);
+            }
+        }
+        catch(System.NullReferenceException){
+            connection.Disconnect();
+            Console.WriteLine("Undefined Message. The Client was disconnected.");
         }
         return result;
     }
@@ -67,12 +75,13 @@ public class WSMessage{
         }
         state=messageState.WSMdecoded;
     }
-
 }
 public class WSClient{
+    private bool offline;
     private TcpClient tcp_client;
     private NetworkStream stream;
     private List<WSMessage> inbox;
+    public bool Offline{get{return offline;}}
     public WSMessage this[int index]{
         get{
             return inbox[index];
@@ -85,10 +94,17 @@ public class WSClient{
         tcp_client=_tcp_client;
         stream=_stream;
         inbox=new List<WSMessage>();
+        offline=false;
+        Console.WriteLine("Client {0} connected.",stream.Socket.LocalEndPoint.ToString());
     }
     public int addMessage(WSMessage message){
         inbox.Add(message);
         return inbox.Count-1;
+    }
+    public void Disconnect(){
+        stream.Dispose();
+        tcp_client.Dispose();
+        offline=true;
     }
 }
 public class WSServer{
@@ -99,6 +115,7 @@ public class WSServer{
     private List<WSClient> clients;
     private Thread openEarThread;
     private Thread mainLoopThread;
+    private WSMessageCallback onMessageReceive;
     private void handshake(NetworkStream stream, string message){
         // 1. Obtain the value of the "Sec-WebSocket-Key" request header without any leading or trailing whitespace
         // 2. Concatenate it with "258EAFA5-E914-47DA-95CA-C5AB0DC85B11" (a special GUID specified by RFC 6455)
@@ -137,22 +154,39 @@ public class WSServer{
                 foreach(WSClient client in clients){
                     NetworkStream stream=client.Stream;
                     TcpClient tcp_client=client.Tcp_Client;
-                    if(stream.DataAvailable){
-                        while(tcp_client.Available<3);//blocks (not good)
-                        byte[] bytes = new byte[tcp_client.Available];
-                        stream.Read(bytes, 0, tcp_client.Available);
-                        string s = Encoding.UTF8.GetString(bytes);
-                        if(ishandshake(stream,s)){
-                            handshake(stream,s);
-                        }
-                        else{
-                            WSMessage msg=new WSMessage(bytes,client);
-                            msg.decodeRaw();
-                            Console.WriteLine("{0}",msg.getString());
+                    if(client.Tcp_Client.Connected==false){
+                        //handle disconnect
+                        client.Disconnect();
+                        Console.WriteLine("Client unexpected disconnected.");
+                    }
+                    else{
+                        if(stream.DataAvailable){
+                            while(tcp_client.Available<3);//blocks (not good)
+                            byte[] bytes = new byte[tcp_client.Available];
+                            stream.Read(bytes, 0, tcp_client.Available);
+                            string s = Encoding.UTF8.GetString(bytes);
+                            if(ishandshake(stream,s)){
+                                handshake(stream,s);
+                            }
+                            else{
+                                WSMessage msg=new WSMessage(bytes,client);
+                                msg.decodeRaw();
+                                if(msg.getString()!=""){
+                                    onMessageReceive(msg); //call callback
+                                }
+                                //Console.WriteLine("{0}",msg.getString());
+                            }
                         }
                     }
-                    //handle disconnect
-                    //client.Tcp_Client.
+                }
+                //remove offline clients //maybe change later
+                int max_clients=clients.Count;
+                for(int i=0;i<max_clients;i++){
+                    WSClient client=clients[i];
+                    if(client.Offline){
+                        clients.Remove(client);
+                        max_clients=clients.Count;
+                    }
                 }
             }
         }
@@ -182,5 +216,8 @@ public class WSServer{
             return true;
         }
         return true;
+    }
+    public void OnMessageReceive(WSMessageCallback callback){
+        onMessageReceive=new WSMessageCallback(callback);
     }
 }
