@@ -12,6 +12,9 @@ namespace MLServer
     {
         static void Main(string[] args)
         {
+            WSServer server=new WSServer("127.0.0.1",80);
+            server.Start();
+            /*
             string ip = "127.0.0.1";
             int port = 80;
             var server = new TcpListener(IPAddress.Parse(ip), port);
@@ -88,8 +91,9 @@ namespace MLServer
                         Console.WriteLine("mask bit not set");
 
                     Console.WriteLine();
+                    
                 }
-            }
+            }*/
         }
     }
 }
