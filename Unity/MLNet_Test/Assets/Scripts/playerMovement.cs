@@ -109,12 +109,20 @@ public class playerMovement : MonoBehaviour
     {
         api.Refresh();
         string answer=api.getRecentMessage();
-        if(answer!=null){
-            Debug.Log(answer);
-        }
         currentPosition = this.transform.position;
         currentMovement = new Movement(currentPosition,Time.frameCount);
-
+        if(answer!=null){
+            Debug.Log(answer);
+            XMLobject ai=new XMLobject();
+            ai.decodeXML(answer);
+            XMLobject ai_input=ai.find("ai_input");
+            if(ai_input!=null){
+                if(ai_input.Payload=="W"){trigger_input(KeyCode.W);}
+                if(ai_input.Payload=="A"){trigger_input(KeyCode.A);}
+                if(ai_input.Payload=="S"){trigger_input(KeyCode.S);}
+                if(ai_input.Payload=="D"){trigger_input(KeyCode.D);}
+            }
+        }
         if(Input.GetKey(KeyCode.W)){
             trigger_input(KeyCode.W);
         }

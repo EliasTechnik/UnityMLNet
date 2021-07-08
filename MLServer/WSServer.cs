@@ -15,6 +15,7 @@ public delegate void WSMessageCallback(WSMessage message);
 public class WSMessage{
     private byte[] raw;
     private byte[] decoded;
+    private string plain;
     private WSClient connection;
     private bool fin;
     private bool mask;
@@ -23,14 +24,32 @@ public class WSMessage{
     private int offset;
     private messageState state;
     private messageType type;
+    public byte[] Raw{get{return raw;}}
     public messageState State => state;
     public messageType Type => type; 
+    public WSClient Connection{get{return connection;}}
     public WSMessage(byte[] _raw, WSClient _connection){
         raw=_raw;
         connection=_connection;
         state=messageState.WSMreceived;
     }
+    public WSMessage(string message, WSClient _connection,bool attendSending){
+        connection=_connection;
+        state=messageState.WSMplain;
+        plain=message;
+        if(attendSending){
+            type=messageType.WSMtoBeSend;
+            //encodeRaw();
+            //state=messageState.WSMencoded;
+        }
+        else{
+            type=messageType.WSMtoBeSend;
+        }  
+    }
     public string getString(){
+        if(state==messageState.WSMplain){
+            return plain;
+        }
         if(state==messageState.WSMreceived){
             this.decodeRaw();
         }
@@ -45,6 +64,9 @@ public class WSMessage{
             Console.WriteLine("Undefined Message. The Client was disconnected.");
         }
         return result;
+    }
+    public void encodeRaw(){
+        raw=Encoding.UTF8.GetBytes(plain);
     }
     public void decodeRaw(){
         fin=(raw[0] & 0b10000000) != 0;
@@ -80,32 +102,48 @@ public class WSClient{
     private bool offline;
     private TcpClient tcp_client;
     private NetworkStream stream;
-    private List<WSMessage> inbox;
+    //private List<WSMessage> inbox;
+    private List<WSMessage> outbox;
     public bool Offline{get{return offline;}}
-    public WSMessage this[int index]{
+    /*public WSMessage this[int index]{
         get{
             return inbox[index];
         }
-    }
-    public int msgCount{get{return inbox.Count;}}
+    }*/
+    //public int msgCount{get{return inbox.Count;}}
     public TcpClient Tcp_Client{get{return tcp_client;}}
     public NetworkStream Stream{get{return stream;}}
+    public int OutboxCount{get{return outbox.Count;}}
     public WSClient(TcpClient _tcp_client, NetworkStream _stream){
         tcp_client=_tcp_client;
         stream=_stream;
-        inbox=new List<WSMessage>();
+        //inbox=new List<WSMessage>();
+        outbox=new List<WSMessage>();
         offline=false;
         Console.WriteLine("Client {0} connected.",stream.Socket.LocalEndPoint.ToString());
     }
-    public int addMessage(WSMessage message){
+    /*public int addMessage(WSMessage message){
         inbox.Add(message);
         return inbox.Count-1;
-    }
+    }*/
     public void Disconnect(){
         stream.Dispose();
         tcp_client.Dispose();
         offline=true;
     }
+    public void emptyInbox(){
+        //inbox.Clear();
+    }
+    public List<WSMessage> get_outbox(){
+        return outbox;
+    }
+    public void emptyOutbox(){
+        outbox.Clear();
+    }
+    public void addMessageToOutbox(WSMessage msg){
+        outbox.Add(msg);
+    }
+
 }
 public class WSServer{
     private string ip;
@@ -163,19 +201,34 @@ public class WSServer{
                         if(stream.DataAvailable){
                             while(tcp_client.Available<3);//blocks (not good)
                             byte[] bytes = new byte[tcp_client.Available];
-                            stream.Read(bytes, 0, tcp_client.Available);
-                            string s = Encoding.UTF8.GetString(bytes);
-                            if(ishandshake(stream,s)){
-                                handshake(stream,s);
-                            }
-                            else{
-                                WSMessage msg=new WSMessage(bytes,client);
-                                msg.decodeRaw();
-                                if(msg.getString()!=""){
-                                    onMessageReceive(msg); //call callback
+                            try{
+                                stream.Read(bytes, 0, tcp_client.Available);
+                                string s = Encoding.UTF8.GetString(bytes);
+                                if(ishandshake(stream,s)){
+                                    handshake(stream,s);
                                 }
-                                //Console.WriteLine("{0}",msg.getString());
+                                else{
+                                    WSMessage msg=new WSMessage(bytes,client);
+                                    msg.decodeRaw();
+                                    if(msg.getString()!=""){
+                                        onMessageReceive(msg); //call callback
+                                    }
+                                    //Console.WriteLine("{0}",msg.getString());
+                                }
                             }
+                            catch(System.ArgumentOutOfRangeException){
+                                Console.WriteLine("Error on reading stream.");
+                            }
+                            
+                        }
+                        //send data
+                        if(client.OutboxCount>0){
+                            List<WSMessage> send=client.get_outbox();
+                            foreach(WSMessage m in send){
+                                SendMessageToClient(client.Tcp_Client,m.getString());
+                                //client.Stream.Write(m.Raw,0,m.Raw.Length-1);
+                            }
+                            client.emptyOutbox();
                         }
                     }
                 }
@@ -206,6 +259,7 @@ public class WSServer{
             openEarThread.Start();
             mainLoopThread=new Thread(new ThreadStart(mainLoop));
             mainLoopThread.Start();
+            Console.WriteLine("The Server is running on "+ip+":"+port.ToString());
         }
     }
     public bool Stop(){
@@ -219,5 +273,54 @@ public class WSServer{
     }
     public void OnMessageReceive(WSMessageCallback callback){
         onMessageReceive=new WSMessageCallback(callback);
+    }
+    public void sendText(WSClient receiver,string message){//do not use
+        Byte[] bytes=Encoding.UTF8.GetBytes(message);
+        receiver.Stream.Write(bytes,0,bytes.Length);
+    }
+    //--Code from here: https://stackoverflow.com/a/61106373
+    public void SendMessageToClient(TcpClient client, string msg){
+        NetworkStream stream = client.GetStream();
+        Queue<string> que = new Queue<string>(msg.SplitInGroups(125));
+        int len = que.Count;
+
+        while (que.Count > 0){
+            var header = GetHeader(
+                que.Count > 1 ? false : true,
+                que.Count == len ? false : true
+            );
+            byte[] list = Encoding.UTF8.GetBytes(que.Dequeue());
+            header = (header << 7) + list.Length;
+            stream.Write(IntToByteArray((ushort)header), 0, 2);
+            stream.Write(list, 0, list.Length);
+        }            
+    }
+    protected int GetHeader(bool finalFrame, bool contFrame){
+        int header = finalFrame ? 1 : 0;//fin: 0 = more frames, 1 = final frame
+        header = (header << 1) + 0;//rsv1
+        header = (header << 1) + 0;//rsv2
+        header = (header << 1) + 0;//rsv3
+        header = (header << 4) + (contFrame ? 0 : 1);//opcode : 0 = continuation frame, 1 = text
+        header = (header << 1) + 0;//mask: server -> client = no mask
+        return header;
+    }
+    protected byte[] IntToByteArray(ushort value){
+        var ary = BitConverter.GetBytes(value);
+        if (BitConverter.IsLittleEndian){
+            Array.Reverse(ary);
+        }
+        return ary;
+    }
+}
+/// ================= [ extension class ]==============>
+public static class XLExtensions{
+    public static IEnumerable<string> SplitInGroups(this string original, int size){
+        var p = 0;
+        var l = original.Length;
+        while (l - p > size){
+            yield return original.Substring(p, size);
+            p += size;
+        }
+        yield return original.Substring(p);
     }
 }

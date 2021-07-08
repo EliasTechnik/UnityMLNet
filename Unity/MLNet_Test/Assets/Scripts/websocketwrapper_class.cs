@@ -27,6 +27,7 @@ public class WSWrapper{
             //Debug.Log("OnMessage!");
             //Debug.Log(bytes);
             recent_message = System.Text.Encoding.UTF8.GetString(bytes);
+            //Debug.Log("Got Message:"+recent_message);
         };
         await ws.Connect();
     }
