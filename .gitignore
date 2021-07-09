@@ -85,3 +85,7 @@ $RECYCLE.BIN/
 
 #UnityLockfile
 Temp/UnityLockfile
+
+#MLServer
+MLServer/bin
+MLServer/ExportedObj
