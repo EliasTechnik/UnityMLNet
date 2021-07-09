@@ -31,7 +31,7 @@ namespace MLServer
                         XMLobject xp=new XMLobject("ai_input");
                         if(prediction.Score[0]==1){
                             //Console.WriteLine("Keykode: D");
-                            xp.addPayload("S");
+                            xp.addPayload("D");
                         }
                         if(prediction.Score[1]==1){
                             //Console.WriteLine("Keykode: W");
@@ -39,11 +39,11 @@ namespace MLServer
                         }
                         if(prediction.Score[2]==1){
                             //Console.WriteLine("Keykode: A");
-                            xp.addPayload("W");
+                            xp.addPayload("S");
                         }
                         if(prediction.Score[3]==1){
                             //Console.WriteLine("Keykode: S");
-                            xp.addPayload("D");
+                            xp.addPayload("W");
                         }
                         msg.Connection.addMessageToOutbox(new WSMessage(xp.serialize(),msg.Connection,true));
                         //server.sendText(msg.Connection,xp.serialize());

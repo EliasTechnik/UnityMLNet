@@ -7,7 +7,7 @@ public class playerMovement : MonoBehaviour
     private WSWrapper api;
     private float maxSpeed=0.4f;
     private float gain=0.002f;//0.05f;
-    private float friction=0.995f;
+    private float friction=0.995f;//0.995f;
     private Vector3 inertia;
     private Vector3 targetPosition;
     private float lastRoundTime;
