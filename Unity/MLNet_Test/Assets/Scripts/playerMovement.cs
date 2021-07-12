@@ -16,6 +16,7 @@ public class playerMovement : MonoBehaviour
     private Movement currentMovement;
     private Score currentScore;
     private Vector3 currentPosition;
+    private bool trainingStarted;
     private void respawn_target(){
         //get borders
         GameObject ground=GameObject.Find("ground_obj");
@@ -103,6 +104,7 @@ public class playerMovement : MonoBehaviour
         currentScore.startTimer(targetPosition,currentPosition);
         api=new WSWrapper();
         api.Connect("ws://127.0.0.1:3333");
+        trainingStarted=false;
     }
     // Update is called once per frame
     void Update()
@@ -141,8 +143,23 @@ public class playerMovement : MonoBehaviour
         inertia=new Vector3(inertia.x*friction,inertia.y*friction,inertia.z*friction);
         this.transform.SetPositionAndRotation(currentPosition,this.transform.rotation); 
         currentMovement.ArrowDirection=updateCompass();
-        //send data
-        XMLobject xo=new XMLobject("instruction","predict");
+        XMLobject xo;
+        if(currentScore.ScoreId==0){
+            if(trainingStarted==false){
+                //advice server to collect data
+                xo=new XMLobject("instruction","learnFromUser_start");
+                api.SendString(xo.serialize());
+                trainingStarted=true;
+            }
+            else{
+                xo=new XMLobject("instruction","learnFromUser_data");
+            }
+        }
+        else{
+             //xo=new XMLobject("instruction","predict");
+             xo=new XMLobject("instruction","");
+        }
+        
         xo.addChild(new XMLobject("movement_data",currentMovement.toCSVLine().getCSV(',')));
         api.SendString(xo.serialize());
         currentScore.addMovement(currentMovement);
@@ -153,6 +170,10 @@ public class playerMovement : MonoBehaviour
             respawn_target();
             Debug.Log("Score: "+currentScore.ScorePoints+" Time: "+currentScore.ScoreTime);
             mainScore.AddScore(currentScore);
+            if(currentScore.ScoreId==0){
+                XMLobject xo=new XMLobject("instruction","createModel");
+                api.SendString(xo.serialize());
+            }
             //mainScore.saveLastRound("Assets/eduData/");
             currentScore=new Score();
             currentScore.startTimer(targetPosition,currentPosition);
