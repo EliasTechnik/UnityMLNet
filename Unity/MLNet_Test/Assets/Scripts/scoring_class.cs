@@ -141,7 +141,7 @@ public class Score{
         return this.toXML().serialize();
     }
     public CSVTable getCSVTable(){
-        CSVLine heading=new CSVLine(new string[]{"frameNr","startPosition.x","startPosition.y","endPosition.x","endPosition.y","KeysUsed","arrowDirection","rating"});
+        CSVLine heading=new CSVLine(new string[]{"frameNr","startPosition_x","startPosition_y","endPosition_x","endPosition_y","KeysUsed","arrowDirection","rating"});
         CSVTable t=new CSVTable();
         t.addLine(heading,true);
         foreach(Movement m in actionlist){

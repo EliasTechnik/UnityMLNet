@@ -12,6 +12,7 @@ namespace MLServer
     {
         static AIWrapper ai; 
         static WSServer server;
+        static CSVTable user_input;
         static void callback(WSMessage msg){
             //Console.WriteLine("Callback got called.");
             Console.WriteLine(msg.getString());
@@ -48,6 +49,24 @@ namespace MLServer
                         msg.Connection.addMessageToOutbox(new WSMessage(xp.serialize(),msg.Connection,true));
                         //server.sendText(msg.Connection,xp.serialize());
                         break;
+                    case "learnFromUser_start":
+                        //starts logging of user inputs
+                        user_input=new CSVTable(',');
+                        XMLobject structure=new XMLobject(xo.find("table_structure").Payload); //fails if table_Structur is not found
+                        user_input.addLine(new CSVLine(structure.Payload,','),true);//Header
+                        break;
+                    case "learnFromUser_data":
+                        //loggs movement
+                        user_input.addLine(new CSVLine(xo.find("movement_data").Payload,','));
+                        break;
+                    case "createdModel":
+                        //creates new model from data
+                        if(user_input.LineCount>1){
+                            
+                        }
+                        else{
+                            msg.Connection.addMessageToOutbox(new WSMessage("<error>Error on creating Model. Insufficient data present</error>",msg.Connection));
+                        }
                 }
             }
             else{
