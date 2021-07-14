@@ -24,9 +24,17 @@ public class Movement{
         keysUsed=new List<KeyCode>();
         travelingDistance=0;
     }
-    public void setEndPosition(Vector3 _endPosition){
+    public void setEndPosition(Vector3 _endPosition,Vector3 _targetPosition){
         endPosition=_endPosition;
         travelingDistance=Vector3.Distance(startPosition,endPosition);
+        float firstDistanceToTarget=Vector3.Distance(_targetPosition,startPosition);
+        float secondDistanceToTarget=Vector3.Distance(_targetPosition,endPosition);
+        if(firstDistanceToTarget>secondDistanceToTarget){
+            rating=1;
+        }
+        else{
+            rating=0;
+        }
     }
     public void addUsedKeys(KeyCode k){
         keysUsed.Add(k);
@@ -73,6 +81,7 @@ public class Movement{
         foreach(KeyCode kc in keysUsed){
             k+=kc.ToString();
         }
+       // k=""; //provisorisch
         l.addCell(new CSVCell(k));
         l.addCell(new CSVCell(arrowDirection.ToString()));
         l.addCell(new CSVCell(rating.ToString()));

@@ -139,12 +139,12 @@ public class playerMovement : MonoBehaviour
         }   
         currentPosition=currentPosition+inertia;
         currentPosition=remove_border(currentPosition);
-        currentMovement.setEndPosition(currentPosition);
+        currentMovement.setEndPosition(currentPosition,targetPosition);
         inertia=new Vector3(inertia.x*friction,inertia.y*friction,inertia.z*friction);
         this.transform.SetPositionAndRotation(currentPosition,this.transform.rotation); 
         currentMovement.ArrowDirection=updateCompass();
         XMLobject xo;
-        if(currentScore.ScoreId==0){
+        if(currentScore.ScoreId==-1){
             if(trainingStarted==false){
                 //advice server to collect data
                 xo=new XMLobject("instruction","learnFromUser_start");
@@ -156,8 +156,8 @@ public class playerMovement : MonoBehaviour
             }
         }
         else{
-             //xo=new XMLobject("instruction","predict");
-             xo=new XMLobject("instruction","");
+             xo=new XMLobject("instruction","predict2");
+             //xo=new XMLobject("instruction","");
         }
         
         xo.addChild(new XMLobject("movement_data",currentMovement.toCSVLine().getCSV(',')));
@@ -170,7 +170,7 @@ public class playerMovement : MonoBehaviour
             respawn_target();
             Debug.Log("Score: "+currentScore.ScorePoints+" Time: "+currentScore.ScoreTime);
             mainScore.AddScore(currentScore);
-            if(currentScore.ScoreId==0){
+            if(currentScore.ScoreId==-1){
                 XMLobject xo=new XMLobject("instruction","createModel");
                 api.SendString(xo.serialize());
             }
