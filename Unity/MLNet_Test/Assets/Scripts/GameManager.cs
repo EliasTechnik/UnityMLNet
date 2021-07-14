@@ -5,7 +5,7 @@ using UnityEngine;
 public class playerObject{
     private float maxSpeed=0.4f;
     private float gain=0.002f;
-    private float friction=0.995f;
+    private float friction=0.995f;//0.995f;
     private Vector3 inertia;
     private Vector3 trailingPosition;
     private GameObject real_object;
@@ -112,13 +112,70 @@ public class targetManager{
         return targetPosition;
     }
 }
+public class obstacleManager{
+    private float globalHeight;
+    private List<Vector3> avoidList;
+    private List<GameObject> obstacleList;
+    private List<GameObject> obstacleCatalog;
+    private GameObject getRandomObsticle(){
+        return obstacleCatalog[Mathf.RoundToInt(Random.Range(1,obstacleCatalog.Count))-1];
+    }
+    private bool isInCollisionZone(Vector3 position1, float requiredSpace){
+        foreach(Vector3 no in avoidList){
+            if(Vector3.Distance(position1,no)<requiredSpace){
+                return true;
+            }
+        }
+        return false;
+    }
+    public obstacleManager(GameObject[] obstacles, float _globalHeight){
+        obstacleCatalog=new List<GameObject>();
+        foreach(GameObject o in obstacles){
+            obstacleCatalog.Add(o);
+        }
+        avoidList=new List<Vector3>();
+        obstacleList=new List<GameObject>();
+        globalHeight=_globalHeight;
+    }
+    public void avoid(Vector3[] positions){
+        foreach(Vector3 p in positions){
+            avoid(p);
+        }
+    } 
+    public void avoid(Vector3 position){
+            avoidList.Add(position);
+    } 
+    public void ForgetAvoidance(Vector3 position){
+        avoidList.Remove(position);
+    }
+    public void generateObstacles(Vector3 center,float xWidth, float zWidth,int count){
+        float pos_x_boundary=(center.x)+(xWidth/2);
+        float neg_x_boundary=(center.x)-(xWidth/2);
+        float pos_z_boundary=(center.z)+(zWidth/2);
+        float neg_z_boundary=(center.z)-(zWidth/2);
+        float x=0;
+        float z=0;
+        for(int i=0;i<count;i++){
+            do{
+                x=Mathf.Round(Random.Range(neg_x_boundary,pos_z_boundary));
+                z=Mathf.Round(Random.Range(neg_z_boundary,pos_z_boundary));
+            }while(isInCollisionZone(new Vector3(x,globalHeight,z),10)); //could fail if to many objects are generated
+            Vector3 pos=new Vector3(x,globalHeight,z);
+            obstacleList.Add(GameObject.Instantiate(getRandomObsticle(),pos,new Quaternion(0,0,0,0)));
+        }
+    }
+}
 public class WorldManager{
     private GameObject ground;
     private Vector3[,] groundGridPositions;
     private GameObject[,] playGround;
     private float[] mapVirtualCenter;
     private float[] mapOldVirtualCenter;
+    private obstacleManager ObstacleManager;
     public GameObject Ground{get{return ground;}}
+    public Vector3 Center{get{return playGround[1,1].transform.position;}}
+    public float xWidth{get{return playGround[1,1].transform.lossyScale.x*10;}}
+    public float zWidth{get{return playGround[1,1].transform.lossyScale.z*10;}}
     private void degenerateGround(){
         for(int r=0;r<3;r++){
             for(int c=0;c<3;c++){
@@ -134,6 +191,7 @@ public class WorldManager{
                 playGround[x,z]=GameObject.Instantiate(inst,groundGridPositions[x,z],new Quaternion(0,0,0,0));
             }
         }  
+        ObstacleManager.generateObstacles(this.Center,this.xWidth,this.zWidth,20);
     }
     private void moveMapCenter(float _x_center, float _z_center){
         mapOldVirtualCenter=mapVirtualCenter;
@@ -152,8 +210,9 @@ public class WorldManager{
             }
         }
     }
-    public WorldManager(GameObject _ground){
+    public WorldManager(GameObject _ground, obstacleManager _ObstacleManager){
         ground=_ground;
+        ObstacleManager=_ObstacleManager;
         mapVirtualCenter=new float[]{0,0};
         mapOldVirtualCenter=new float[]{0,0};
         groundGridPositions=new Vector3[3,3];
@@ -165,12 +224,10 @@ public class WorldManager{
         //determ player position within the map
         float player_x=playerPosition.x;
         float player_z=playerPosition.z;
-        //Debug.Log("playerPosition: "+player_x.ToString()+" "+player_z.ToString());
         float pos_x_boundary=(playGround[1,1].transform.position.x)+(playGround[1,1].transform.lossyScale.x*10)/2;
         float neg_x_boundary=(playGround[1,1].transform.position.x)-(playGround[1,1].transform.lossyScale.x*10)/2;
         float pos_z_boundary=(playGround[1,1].transform.position.z)+(playGround[1,1].transform.lossyScale.z*10)/2;
         float neg_z_boundary=(playGround[1,1].transform.position.z)-(playGround[1,1].transform.lossyScale.z*10)/2;
-        //Debug.Log("pos_x_boundary: "+pos_x_boundary.ToString());
         if(player_x<neg_x_boundary){
             //row 0
             moveMapCenter(mapVirtualCenter[0]-1,mapVirtualCenter[1]);
@@ -221,19 +278,24 @@ public class WorldManager{
 public class GameManager : MonoBehaviour
 {
     public GameObject groundPrefab;
+    public GameObject L_obstaclePrefab;
     private playerObject Player;
     private WorldManager World;
     private targetManager TargetManager;
     private int lastAction;
     private QAgent ai;
     private Translator translator;
+    private obstacleManager ObstacleManager;
     // Start is called before the first frame update
     void Start()
     {
         //World=new WorldManager(GameObject.Find("ground_obj"));
-        World=new WorldManager(groundPrefab);
+        ObstacleManager=new obstacleManager(new GameObject[]{L_obstaclePrefab},0.5f);
+        World=new WorldManager(
+            groundPrefab,
+            ObstacleManager);
         TargetManager=new targetManager(GameObject.Find("target_obj"));
-        TargetManager.respawn_target(World.Ground);
+        ObstacleManager.avoid(TargetManager.respawn_target(World.Ground));
         Player=new playerObject(
             GameObject.Find("player_obj"),
             World,
@@ -241,6 +303,8 @@ public class GameManager : MonoBehaviour
             GameObject.Find("movementArrow")
         );
         Player.setTargetPosition(TargetManager.TargetPosition);
+        ObstacleManager.avoid(Player.CurrentPosition);
+        //ObstacleManager.generateObstacles(World.Center,World.xWidth,World.zWidth,20);
         translator=new Translator(Player.DistanceToTarget,Player.ArrowDifference);
         ai=new QAgent();
         lastAction=4;

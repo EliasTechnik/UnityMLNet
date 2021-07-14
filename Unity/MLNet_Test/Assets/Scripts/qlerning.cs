@@ -83,15 +83,15 @@ public class Translator{//determs state and translate action
 }
 public class QAgent{
     //https://code-ai.mk/how-to-implement-q-learning-algorithm-in-c/
-    private float explorationThreshold=0.5f; //how explorative should the agent be
-    private double gamma=0.89; //MaxRewardDiscount
+    private float explorationThreshold=0.8f; //how explorative should the agent be
+    private double gamma=0.8; //MaxRewardDiscount //0.89
     private double[][] rewards = new double[5][]{
         //Actions      W-z     A+x    S+z     D-x   Wait
         new double[]{  100,   100,    100,    100,  100},//0 target reached 100
         new double[]{    1,   0.5,    0.5,       0,   0.1},//1 W: -45..+45 // target gets closer and angle diverence gets closer
         new double[]{  0.5,   1,    0.5,    0,  0.1},//2 A: -135..-45 //target gets closer but angle diverence gets greater
         new double[]{  0,   0.5,    1,    0.5,  0.1},//3 S: S: -180..-135 && 135..180 // target gets further away but angle diverence gets closer
-        new double[]{  0.5,    0,    0.5,    1,  -1} //4 D: 45..135 //target gets further away and angle diverence gets greater
+        new double[]{  0.5,    0,    0.5,    1,  0.1} //4 D: 45..135 //target gets further away and angle diverence gets greater
     };
     //Angles:
     /*
