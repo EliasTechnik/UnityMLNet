@@ -12,7 +12,8 @@ public class CSVCell{
             return content;
         }
         set{
-            content=value.Replace(',','.');
+            //content=value.Replace(',','.');
+            content=value;
         }
     }
     public CSVCell(string _content){

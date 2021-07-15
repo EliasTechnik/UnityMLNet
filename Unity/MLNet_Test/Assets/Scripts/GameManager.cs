@@ -1,10 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class playerObject{
     private float maxSpeed=0.4f;
-    private float gain=0.002f;
+    private float gain=0.02f;
     private float friction=0.995f;//0.995f;
     private Vector3 inertia;
     private Vector3 trailingPosition;
@@ -74,7 +75,9 @@ public class playerObject{
         updateArrows();
     }
     public void UpdateMove(){
-        currentPosition=currentPosition+inertia;
+        
+        //currentPosition=currentPosition+inertia;
+        currentPosition=real_object.transform.position+inertia; //for physics to take affect
         //Debug.Log("CurrentPosition: "+currentPosition.x.ToString()+" "+currentPosition.z.ToString());
         //currentPosition=world.removeBorder(currentPosition); //old
         world.updateMap(currentPosition);
@@ -191,7 +194,7 @@ public class WorldManager{
                 playGround[x,z]=GameObject.Instantiate(inst,groundGridPositions[x,z],new Quaternion(0,0,0,0));
             }
         }  
-        ObstacleManager.generateObstacles(this.Center,this.xWidth,this.zWidth,20);
+        //ObstacleManager.generateObstacles(this.Center,this.xWidth,this.zWidth,20);
     }
     private void moveMapCenter(float _x_center, float _z_center){
         mapOldVirtualCenter=mapVirtualCenter;
@@ -275,6 +278,7 @@ public class WorldManager{
         return target_pos;
     }
 }
+
 public class GameManager : MonoBehaviour
 {
     public GameObject groundPrefab;
@@ -286,10 +290,14 @@ public class GameManager : MonoBehaviour
     private QAgent ai;
     private Translator translator;
     private obstacleManager ObstacleManager;
+    private RoundStats RStats;
+    private CSVTable statistics;
+    private Text StatsDisplay;
     // Start is called before the first frame update
     void Start()
     {
         //World=new WorldManager(GameObject.Find("ground_obj"));
+        StatsDisplay=GameObject.Find("bottom_textfield").GetComponent<Text>();
         ObstacleManager=new obstacleManager(new GameObject[]{L_obstaclePrefab},0.5f);
         World=new WorldManager(
             groundPrefab,
@@ -308,6 +316,10 @@ public class GameManager : MonoBehaviour
         translator=new Translator(Player.DistanceToTarget,Player.ArrowDifference);
         ai=new QAgent();
         lastAction=4;
+        statistics=new CSVTable(';');
+        RStats=new RoundStats();
+        statistics.addLine(RStats.getCSVHeader(),true);
+        RStats.startRound(TargetManager.TargetPosition,Player.CurrentPosition);
     }
 
     // Update is called once per frame
@@ -316,11 +328,13 @@ public class GameManager : MonoBehaviour
         int state=0;
         if(TargetManager.hasCollided(Player.RealObject)){
             Debug.Log("Target was hit!");
-            
             //state=translator.determState(Player.DistanceToTarget,Player.ArrowDifference,true);
             state=translator.determState2(Player.TargetArrowRotation,true);
             ai.RewardAction(lastAction,state);
+            RStats.stopRound();
+            statistics.addLine(RStats.getCSVLine());
             Player.setTargetPosition(TargetManager.respawn_target(World.Ground));
+            RStats.startRound(TargetManager.TargetPosition,Player.CurrentPosition);
         }
         else{
             //state=translator.determState(Player.DistanceToTarget,Player.ArrowDifference,false);
@@ -340,9 +354,10 @@ public class GameManager : MonoBehaviour
         }   
         double rew=ai.RewardAction(lastAction,state);
         Debug.Log("Reward: "+rew.ToString()+"State: "+state.ToString());
-        Debug.Log("Target Angle : "+Player.TargetArrowRotation.ToString());
+        //Debug.Log("Target Angle : "+Player.TargetArrowRotation.ToString());
+        StatsDisplay.text="Round: "+RStats.RoundNumber.ToString();
         lastAction=ai.TrainAndPredict(state);
-        /*
+
         float targetAngle=Player.TargetArrowRotation;
         if(targetAngle>-45 && targetAngle<45){
             Player.triggerAction(KeyCode.S);
@@ -359,9 +374,15 @@ public class GameManager : MonoBehaviour
         if(targetAngle>45 && targetAngle<135){
             Player.triggerAction(KeyCode.D);
             Debug.Log("Input: D");
-        }*/
-        Player.triggerAction(translator.ActionToKeycode(lastAction));
+        }
+        
+        //Player.triggerAction(translator.ActionToKeycode(lastAction));
         Player.UpdateMove();
-        ai.printQTable();
+        RStats.addWayPoint(Player.CurrentPosition);
+        //ai.printQTable();
+    }
+    void OnApplicationQuit(){
+        statistics.saveToFile("Assets/stats/","levelStatistics_.csv");
     }
 }
+
